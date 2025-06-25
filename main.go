@@ -459,34 +459,75 @@ func (g *Game) drawHeader(screen *ebiten.Image) {
 	headerBg := color.RGBA{128, 128, 128, 255}
 	vector.DrawFilledRect(screen, 0, 0, float32(windowWidth), HeaderHeight, headerBg, false)
 
-	minesText := fmt.Sprintf("Mines: %d", g.minesLeft)
-	ebitenutil.DebugPrintAt(screen, minesText, 10, 15)
+	// Adapt layout based on window width
+	isNarrow := windowWidth < 400 // Small window (beginner level)
 
-	var elapsed time.Duration
-	if !g.firstClick && g.gameState == GamePlaying {
-		elapsed = time.Since(g.startTime)
-	}
-	timeText := fmt.Sprintf("Time: %d", int(elapsed.Seconds()))
-	ebitenutil.DebugPrintAt(screen, timeText, 10, 30)
+	if isNarrow {
+		// Compact layout for narrow windows
+		minesText := fmt.Sprintf("M:%d", g.minesLeft)
+		ebitenutil.DebugPrintAt(screen, minesText, 5, 15)
 
-	// Show current difficulty
-	difficultyText := g.config.Name
-	ebitenutil.DebugPrintAt(screen, difficultyText, 10, 45)
+		var elapsed time.Duration
+		if !g.firstClick && g.gameState == GamePlaying {
+			elapsed = time.Since(g.startTime)
+		}
+		timeText := fmt.Sprintf("T:%d", int(elapsed.Seconds()))
+		ebitenutil.DebugPrintAt(screen, timeText, 60, 15)
 
-	var statusText string
-	switch g.gameState {
-	case GameWon:
-		statusText = "YOU WIN! Press R to restart"
-	case GameLost:
-		statusText = "GAME OVER! Press R to restart"
-	default:
-		statusText = "1:Beginner 2:Intermediate 3:Expert R:Restart"
-	}
-	maxX := windowWidth - 10
-	if len(statusText)*7 < maxX { // Rough character width estimate
-		ebitenutil.DebugPrintAt(screen, statusText, maxX-len(statusText)*7, 15)
+		// Show short difficulty name
+		var shortDifficulty string
+		switch g.difficulty {
+		case Beginner:
+			shortDifficulty = "Easy"
+		case Intermediate:
+			shortDifficulty = "Med"
+		case Expert:
+			shortDifficulty = "Hard"
+		}
+		ebitenutil.DebugPrintAt(screen, shortDifficulty, 115, 15)
+
+		// Compact status text
+		var statusText string
+		switch g.gameState {
+		case GameWon:
+			statusText = "WIN! R:restart"
+		case GameLost:
+			statusText = "LOSE! R:restart"
+		default:
+			statusText = "1:E 2:M 3:H R:restart"
+		}
+		ebitenutil.DebugPrintAt(screen, statusText, 5, 45)
 	} else {
-		ebitenutil.DebugPrintAt(screen, statusText, maxX-300, 15)
+		// Full layout for wider windows
+		minesText := fmt.Sprintf("Mines: %d", g.minesLeft)
+		ebitenutil.DebugPrintAt(screen, minesText, 10, 15)
+
+		var elapsed time.Duration
+		if !g.firstClick && g.gameState == GamePlaying {
+			elapsed = time.Since(g.startTime)
+		}
+		timeText := fmt.Sprintf("Time: %d", int(elapsed.Seconds()))
+		ebitenutil.DebugPrintAt(screen, timeText, 10, 30)
+
+		// Show current difficulty
+		difficultyText := g.config.Name
+		ebitenutil.DebugPrintAt(screen, difficultyText, 10, 45)
+
+		var statusText string
+		switch g.gameState {
+		case GameWon:
+			statusText = "YOU WIN! Press R to restart"
+		case GameLost:
+			statusText = "GAME OVER! Press R to restart"
+		default:
+			statusText = "1:Beginner 2:Intermediate 3:Expert R:Restart"
+		}
+		maxX := windowWidth - 10
+		if len(statusText)*7 < maxX {
+			ebitenutil.DebugPrintAt(screen, statusText, maxX-len(statusText)*7, 15)
+		} else {
+			ebitenutil.DebugPrintAt(screen, statusText, maxX-300, 15)
+		}
 	}
 }
 
