@@ -14,13 +14,30 @@ import (
 )
 
 const (
-	CellSize     = 30
-	GridWidth    = 16
-	GridHeight   = 16
-	MineCount    = 40
-	WindowWidth  = GridWidth * CellSize
-	WindowHeight = GridHeight*CellSize + 60
+	CellSize = 30
+	HeaderHeight = 60
 )
+
+type Difficulty int
+
+const (
+	Beginner Difficulty = iota
+	Intermediate
+	Expert
+)
+
+type DifficultyConfig struct {
+	Width     int
+	Height    int
+	MineCount int
+	Name      string
+}
+
+var difficultyConfigs = map[Difficulty]DifficultyConfig{
+	Beginner:     {Width: 9, Height: 9, MineCount: 10, Name: "初級 (9x9, 10 mines)"},
+	Intermediate: {Width: 16, Height: 16, MineCount: 40, Name: "中級 (16x16, 40 mines)"},
+	Expert:       {Width: 30, Height: 16, MineCount: 99, Name: "上級 (30x16, 99 mines)"},
+}
 
 // Color mapping for mine count numbers
 var numberColors = []color.Color{
@@ -64,18 +81,27 @@ type Game struct {
 	firstClick bool
 	startTime  time.Time
 	minesLeft  int
+	difficulty Difficulty
+	config     DifficultyConfig
 }
 
 func NewGame() *Game {
+	return NewGameWithDifficulty(Intermediate) // Default to intermediate
+}
+
+func NewGameWithDifficulty(difficulty Difficulty) *Game {
+	config := difficultyConfigs[difficulty]
 	g := &Game{
-		board:      make([][]Cell, GridHeight),
+		board:      make([][]Cell, config.Height),
 		gameState:  GamePlaying,
 		firstClick: true,
-		minesLeft:  MineCount,
+		minesLeft:  config.MineCount,
+		difficulty: difficulty,
+		config:     config,
 	}
 
 	for i := range g.board {
-		g.board[i] = make([]Cell, GridWidth)
+		g.board[i] = make([]Cell, config.Width)
 	}
 
 	return g
@@ -85,9 +111,9 @@ func (g *Game) placeMines(firstClickX, firstClickY int) {
 	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
 	minesPlaced := 0
 
-	for minesPlaced < MineCount {
-		x := rng.Intn(GridWidth)
-		y := rng.Intn(GridHeight)
+	for minesPlaced < g.config.MineCount {
+		x := rng.Intn(g.config.Width)
+		y := rng.Intn(g.config.Height)
 
 		if !g.board[y][x].HasMine && !g.isFirstClickArea(x, y, firstClickX, firstClickY) {
 			g.board[y][x].HasMine = true
@@ -110,7 +136,7 @@ func abs(x int) int {
 }
 
 // drawLargeNumber draws a large colored number using simple pixel patterns
-func drawLargeNumber(screen *ebiten.Image, num int, x, y int, c color.Color) {
+func (g *Game) drawLargeNumber(screen *ebiten.Image, num int, x, y int, c color.Color) {
 	// Simple 5x7 bitmap patterns for numbers 1-8
 	patterns := map[int][]string{
 		1: {
@@ -203,7 +229,7 @@ func drawLargeNumber(screen *ebiten.Image, num int, x, y int, c color.Color) {
 					for dx := 0; dx < scale; dx++ {
 						px := x + col*scale + dx
 						py := y + row*scale + dy
-						if px >= 0 && py >= 0 && px < WindowWidth && py < WindowHeight+60 {
+						if px >= 0 && py >= 0 && px < g.config.Width*CellSize && py < g.config.Height*CellSize+HeaderHeight {
 							vector.DrawFilledRect(screen, float32(px), float32(py), 1, 1, c, false)
 						}
 					}
@@ -214,7 +240,7 @@ func drawLargeNumber(screen *ebiten.Image, num int, x, y int, c color.Color) {
 }
 
 // drawLargeMine draws a large mine symbol
-func drawLargeMine(screen *ebiten.Image, x, y int) {
+func (g *Game) drawLargeMine(screen *ebiten.Image, x, y int) {
 	c := color.RGBA{255, 0, 0, 255} // Red mine
 	pattern := []string{
 		"  #  ",
@@ -232,7 +258,7 @@ func drawLargeMine(screen *ebiten.Image, x, y int) {
 					for dx := 0; dx < scale; dx++ {
 						px := x + col*scale + dx
 						py := y + row*scale + dy + 2 // Offset slightly
-						if px >= 0 && py >= 0 && px < WindowWidth && py < WindowHeight+60 {
+						if px >= 0 && py >= 0 && px < g.config.Width*CellSize && py < g.config.Height*CellSize+HeaderHeight {
 							vector.DrawFilledRect(screen, float32(px), float32(py), 1, 1, c, false)
 						}
 					}
@@ -243,7 +269,7 @@ func drawLargeMine(screen *ebiten.Image, x, y int) {
 }
 
 // drawLargeFlag draws a large flag symbol
-func drawLargeFlag(screen *ebiten.Image, x, y int) {
+func (g *Game) drawLargeFlag(screen *ebiten.Image, x, y int) {
 	c := color.RGBA{255, 0, 0, 255} // Red flag
 	pattern := []string{
 		"##   ",
@@ -263,7 +289,7 @@ func drawLargeFlag(screen *ebiten.Image, x, y int) {
 					for dx := 0; dx < scale; dx++ {
 						px := x + col*scale + dx
 						py := y + row*scale + dy
-						if px >= 0 && py >= 0 && px < WindowWidth && py < WindowHeight+60 {
+						if px >= 0 && py >= 0 && px < g.config.Width*CellSize && py < g.config.Height*CellSize+HeaderHeight {
 							vector.DrawFilledRect(screen, float32(px), float32(py), 1, 1, c, false)
 						}
 					}
@@ -274,8 +300,8 @@ func drawLargeFlag(screen *ebiten.Image, x, y int) {
 }
 
 func (g *Game) calculateNeighborMines() {
-	for y := 0; y < GridHeight; y++ {
-		for x := 0; x < GridWidth; x++ {
+	for y := 0; y < g.config.Height; y++ {
+		for x := 0; x < g.config.Width; x++ {
 			if !g.board[y][x].HasMine {
 				g.board[y][x].NeighborMines = g.countNeighborMines(x, y)
 			}
@@ -300,7 +326,7 @@ func (g *Game) countNeighborMines(x, y int) int {
 }
 
 func (g *Game) isValidPosition(x, y int) bool {
-	return x >= 0 && x < GridWidth && y >= 0 && y < GridHeight
+	return x >= 0 && x < g.config.Width && y >= 0 && y < g.config.Height
 }
 
 func (g *Game) openCell(x, y int) {
@@ -351,8 +377,8 @@ func (g *Game) toggleFlag(x, y int) {
 }
 
 func (g *Game) revealAllMines() {
-	for y := 0; y < GridHeight; y++ {
-		for x := 0; x < GridWidth; x++ {
+	for y := 0; y < g.config.Height; y++ {
+		for x := 0; x < g.config.Width; x++ {
 			if g.board[y][x].HasMine {
 				g.board[y][x].State = CellOpen
 			}
@@ -361,8 +387,8 @@ func (g *Game) revealAllMines() {
 }
 
 func (g *Game) checkWinCondition() {
-	for y := 0; y < GridHeight; y++ {
-		for x := 0; x < GridWidth; x++ {
+	for y := 0; y < g.config.Height; y++ {
+		for x := 0; x < g.config.Width; x++ {
 			if !g.board[y][x].HasMine && g.board[y][x].State != CellOpen {
 				return
 			}
@@ -372,8 +398,23 @@ func (g *Game) checkWinCondition() {
 }
 
 func (g *Game) Update() error {
+	// Restart current difficulty
 	if inpututil.IsKeyJustPressed(ebiten.KeyR) {
-		*g = *NewGame()
+		*g = *NewGameWithDifficulty(g.difficulty)
+		return nil
+	}
+
+	// Difficulty switching
+	if inpututil.IsKeyJustPressed(ebiten.Key1) {
+		*g = *NewGameWithDifficulty(Beginner)
+		return nil
+	}
+	if inpututil.IsKeyJustPressed(ebiten.Key2) {
+		*g = *NewGameWithDifficulty(Intermediate)
+		return nil
+	}
+	if inpututil.IsKeyJustPressed(ebiten.Key3) {
+		*g = *NewGameWithDifficulty(Expert)
 		return nil
 	}
 
@@ -383,19 +424,23 @@ func (g *Game) Update() error {
 
 	if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
 		x, y := ebiten.CursorPosition()
-		if y >= 60 {
+		if y >= HeaderHeight {
 			cellX := x / CellSize
-			cellY := (y - 60) / CellSize
-			g.openCell(cellX, cellY)
+			cellY := (y - HeaderHeight) / CellSize
+			if cellX < g.config.Width && cellY < g.config.Height {
+				g.openCell(cellX, cellY)
+			}
 		}
 	}
 
 	if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonRight) {
 		x, y := ebiten.CursorPosition()
-		if y >= 60 {
+		if y >= HeaderHeight {
 			cellX := x / CellSize
-			cellY := (y - 60) / CellSize
-			g.toggleFlag(cellX, cellY)
+			cellY := (y - HeaderHeight) / CellSize
+			if cellX < g.config.Width && cellY < g.config.Height {
+				g.toggleFlag(cellX, cellY)
+			}
 		}
 	}
 
@@ -410,18 +455,23 @@ func (g *Game) Draw(screen *ebiten.Image) {
 }
 
 func (g *Game) drawHeader(screen *ebiten.Image) {
+	windowWidth := g.config.Width * CellSize
 	headerBg := color.RGBA{128, 128, 128, 255}
-	vector.DrawFilledRect(screen, 0, 0, WindowWidth, 60, headerBg, false)
+	vector.DrawFilledRect(screen, 0, 0, float32(windowWidth), HeaderHeight, headerBg, false)
 
 	minesText := fmt.Sprintf("Mines: %d", g.minesLeft)
-	ebitenutil.DebugPrintAt(screen, minesText, 10, 20)
+	ebitenutil.DebugPrintAt(screen, minesText, 10, 15)
 
 	var elapsed time.Duration
 	if !g.firstClick && g.gameState == GamePlaying {
 		elapsed = time.Since(g.startTime)
 	}
 	timeText := fmt.Sprintf("Time: %d", int(elapsed.Seconds()))
-	ebitenutil.DebugPrintAt(screen, timeText, 10, 40)
+	ebitenutil.DebugPrintAt(screen, timeText, 10, 30)
+
+	// Show current difficulty
+	difficultyText := g.config.Name
+	ebitenutil.DebugPrintAt(screen, difficultyText, 10, 45)
 
 	var statusText string
 	switch g.gameState {
@@ -430,14 +480,19 @@ func (g *Game) drawHeader(screen *ebiten.Image) {
 	case GameLost:
 		statusText = "GAME OVER! Press R to restart"
 	default:
-		statusText = "Left click: open, Right click: flag"
+		statusText = "1:Beginner 2:Intermediate 3:Expert R:Restart"
 	}
-	ebitenutil.DebugPrintAt(screen, statusText, WindowWidth-300, 20)
+	maxX := windowWidth - 10
+	if len(statusText)*7 < maxX { // Rough character width estimate
+		ebitenutil.DebugPrintAt(screen, statusText, maxX-len(statusText)*7, 15)
+	} else {
+		ebitenutil.DebugPrintAt(screen, statusText, maxX-300, 15)
+	}
 }
 
 func (g *Game) drawBoard(screen *ebiten.Image) {
-	for y := 0; y < GridHeight; y++ {
-		for x := 0; x < GridWidth; x++ {
+	for y := 0; y < g.config.Height; y++ {
+		for x := 0; x < g.config.Width; x++ {
 			g.drawCell(screen, x, y)
 		}
 	}
@@ -445,7 +500,7 @@ func (g *Game) drawBoard(screen *ebiten.Image) {
 
 func (g *Game) drawCell(screen *ebiten.Image, x, y int) {
 	screenX := float64(x * CellSize)
-	screenY := float64(y*CellSize + 60)
+	screenY := float64(y*CellSize + HeaderHeight)
 	cell := &g.board[y][x]
 
 	var cellColor color.Color
@@ -467,7 +522,7 @@ func (g *Game) drawCell(screen *ebiten.Image, x, y int) {
 
 	if cell.State == CellOpen {
 		if cell.HasMine {
-			drawLargeMine(screen, int(screenX)+7, int(screenY)+8)
+			g.drawLargeMine(screen, int(screenX)+7, int(screenY)+8)
 		} else if cell.NeighborMines > 0 {
 			// Get color for this number
 			var textColor color.Color
@@ -476,20 +531,22 @@ func (g *Game) drawCell(screen *ebiten.Image, x, y int) {
 			} else {
 				textColor = color.RGBA{0, 0, 0, 255} // Default black
 			}
-			drawLargeNumber(screen, cell.NeighborMines, int(screenX)+7, int(screenY)+8, textColor)
+			g.drawLargeNumber(screen, cell.NeighborMines, int(screenX)+7, int(screenY)+8, textColor)
 		}
 	} else if cell.State == CellFlagged {
-		drawLargeFlag(screen, int(screenX)+7, int(screenY)+8)
+		g.drawLargeFlag(screen, int(screenX)+7, int(screenY)+8)
 	}
 }
 
 func (g *Game) Layout(outsideWidth, outsideHeight int) (screenWidth, screenHeight int) {
-	return WindowWidth, WindowHeight
+	return g.config.Width * CellSize, g.config.Height*CellSize + HeaderHeight
 }
 
 func main() {
 	game := NewGame()
-	ebiten.SetWindowSize(WindowWidth*2, WindowHeight*2)
+	windowWidth := game.config.Width * CellSize
+	windowHeight := game.config.Height*CellSize + HeaderHeight
+	ebiten.SetWindowSize(windowWidth*2, windowHeight*2)
 	ebiten.SetWindowTitle("Minesweeper")
 	if err := ebiten.RunGame(game); err != nil {
 		log.Fatal(err)

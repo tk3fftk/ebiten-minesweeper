@@ -28,7 +28,10 @@ gofmt -w .
 
 - Left click: Open cell
 - Right click: Flag/unflag cell  
-- R key: Restart game
+- R key: Restart current difficulty
+- 1 key: Switch to Beginner (9x9, 10 mines)
+- 2 key: Switch to Intermediate (16x16, 40 mines)  
+- 3 key: Switch to Expert (30x16, 99 mines)
 
 ## Code Architecture
 
@@ -56,11 +59,14 @@ The game uses Ebiten's immediate mode rendering:
 
 ### Configuration Constants
 
-All game parameters are defined as package-level constants:
+Game supports three difficulty levels with dynamic sizing:
 
-- Grid size: 16x16 with 40 mines (intermediate difficulty)
-- Cell size: 30 pixels
-- Window dimensions calculated from grid size
+- **Beginner**: 9x9 grid with 10 mines
+- **Intermediate**: 16x16 grid with 40 mines (default)
+- **Expert**: 30x16 grid with 99 mines
+- Cell size: 30 pixels (constant)
+- Window dimensions calculated dynamically based on selected difficulty
+- Header height: 60 pixels for UI controls
 
 ## Ebiten-Specific Considerations
 
