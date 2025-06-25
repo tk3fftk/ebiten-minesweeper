@@ -239,32 +239,56 @@ func (g *Game) drawLargeNumber(screen *ebiten.Image, num int, x, y int, c color.
 	}
 }
 
-// drawLargeMine draws a large mine symbol
-func (g *Game) drawLargeMine(screen *ebiten.Image, x, y int) {
-	c := color.RGBA{255, 0, 0, 255} // Red mine
-	pattern := []string{
-		"  #  ",
-		" ### ",
-		"#####",
-		" ### ",
-		"  #  ",
-	}
-
-	scale := 2
-	for row, line := range pattern {
-		for col, char := range line {
-			if char == '#' {
-				for dy := 0; dy < scale; dy++ {
-					for dx := 0; dx < scale; dx++ {
-						px := x + col*scale + dx
-						py := y + row*scale + dy + 2 // Offset slightly
-						if px >= 0 && py >= 0 && px < g.config.Width*CellSize && py < g.config.Height*CellSize+HeaderHeight {
-							vector.DrawFilledRect(screen, float32(px), float32(py), 1, 1, c, false)
-						}
-					}
+// drawMine draws a mine symbol that looks like a bomb
+func (g *Game) drawMine(screen *ebiten.Image, x, y int) {
+	// Draw a black circle for the bomb body
+	centerX := x + 8
+	centerY := y + 8
+	radius := 6
+	
+	// Draw filled circle using small rectangles
+	for dy := -radius; dy <= radius; dy++ {
+		for dx := -radius; dx <= radius; dx++ {
+			if dx*dx + dy*dy <= radius*radius {
+				px := centerX + dx
+				py := centerY + dy
+				if px >= 0 && py >= 0 && px < g.config.Width*CellSize && py < g.config.Height*CellSize+HeaderHeight {
+					vector.DrawFilledRect(screen, float32(px), float32(py), 1, 1, color.RGBA{0, 0, 0, 255}, false)
 				}
 			}
 		}
+	}
+	
+	// Draw spikes around the bomb
+	spikeColor := color.RGBA{0, 0, 0, 255}
+	
+	// Top spike
+	for i := 0; i < 3; i++ {
+		vector.DrawFilledRect(screen, float32(centerX), float32(centerY-radius-3+i), 1, 1, spikeColor, false)
+	}
+	// Bottom spike  
+	for i := 0; i < 3; i++ {
+		vector.DrawFilledRect(screen, float32(centerX), float32(centerY+radius+1+i), 1, 1, spikeColor, false)
+	}
+	// Left spike
+	for i := 0; i < 3; i++ {
+		vector.DrawFilledRect(screen, float32(centerX-radius-3+i), float32(centerY), 1, 1, spikeColor, false)
+	}
+	// Right spike
+	for i := 0; i < 3; i++ {
+		vector.DrawFilledRect(screen, float32(centerX+radius+1+i), float32(centerY), 1, 1, spikeColor, false)
+	}
+	
+	// Diagonal spikes
+	for i := 0; i < 2; i++ {
+		// Top-left
+		vector.DrawFilledRect(screen, float32(centerX-4-i), float32(centerY-4-i), 1, 1, spikeColor, false)
+		// Top-right  
+		vector.DrawFilledRect(screen, float32(centerX+4+i), float32(centerY-4-i), 1, 1, spikeColor, false)
+		// Bottom-left
+		vector.DrawFilledRect(screen, float32(centerX-4-i), float32(centerY+4+i), 1, 1, spikeColor, false)
+		// Bottom-right
+		vector.DrawFilledRect(screen, float32(centerX+4+i), float32(centerY+4+i), 1, 1, spikeColor, false)
 	}
 }
 
@@ -563,7 +587,7 @@ func (g *Game) drawCell(screen *ebiten.Image, x, y int) {
 
 	if cell.State == CellOpen {
 		if cell.HasMine {
-			g.drawLargeMine(screen, int(screenX)+7, int(screenY)+8)
+			g.drawMine(screen, int(screenX)+7, int(screenY)+8)
 		} else if cell.NeighborMines > 0 {
 			// Get color for this number
 			var textColor color.Color
