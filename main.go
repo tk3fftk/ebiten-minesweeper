@@ -15,7 +15,7 @@ import (
 
 const (
 	CellSize     = 30
-	HeaderHeight = 60
+	HeaderHeight = 70
 )
 
 type Difficulty int
@@ -610,7 +610,21 @@ func main() {
 	game := NewGame()
 	windowWidth := game.config.Width * CellSize
 	windowHeight := game.config.Height*CellSize + HeaderHeight
-	ebiten.SetWindowSize(windowWidth*2, windowHeight*2)
+	
+	// Scale factor based on difficulty to fit on screen
+	var scale float64
+	switch game.difficulty {
+	case Expert:
+		scale = 1.0 // Expert (30x16) needs smaller scale
+	case Intermediate:
+		scale = 1.5 // Intermediate (16x16) can be medium
+	case Beginner:
+		scale = 2.0 // Beginner (9x9) can be largest
+	default:
+		scale = 1.5
+	}
+	
+	ebiten.SetWindowSize(int(float64(windowWidth)*scale), int(float64(windowHeight)*scale))
 	ebiten.SetWindowTitle("Minesweeper")
 	if err := ebiten.RunGame(game); err != nil {
 		log.Fatal(err)
