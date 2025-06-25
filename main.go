@@ -22,6 +22,19 @@ const (
 	WindowHeight = GridHeight*CellSize + 60
 )
 
+// Color mapping for mine count numbers
+var numberColors = []color.Color{
+	color.RGBA{0, 0, 0, 255},       // 0: black (unused)
+	color.RGBA{0, 0, 255, 255},     // 1: blue
+	color.RGBA{0, 128, 0, 255},     // 2: green
+	color.RGBA{255, 0, 0, 255},     // 3: red
+	color.RGBA{128, 0, 128, 255},   // 4: purple
+	color.RGBA{128, 0, 0, 255},     // 5: maroon
+	color.RGBA{0, 128, 128, 255},   // 6: cyan
+	color.RGBA{0, 0, 0, 255},       // 7: black
+	color.RGBA{128, 128, 128, 255}, // 8: gray
+}
+
 
 type CellState int
 
@@ -94,6 +107,170 @@ func abs(x int) int {
 		return -x
 	}
 	return x
+}
+
+// drawLargeNumber draws a large colored number using simple pixel patterns
+func drawLargeNumber(screen *ebiten.Image, num int, x, y int, c color.Color) {
+	// Simple 5x7 bitmap patterns for numbers 1-8
+	patterns := map[int][]string{
+		1: {
+			"  #  ",
+			" ##  ",
+			"  #  ",
+			"  #  ",
+			"  #  ",
+			"  #  ",
+			" ### ",
+		},
+		2: {
+			" ### ",
+			"#   #",
+			"    #",
+			"   # ",
+			"  #  ",
+			" #   ",
+			"#####",
+		},
+		3: {
+			" ### ",
+			"#   #",
+			"    #",
+			" ### ",
+			"    #",
+			"#   #",
+			" ### ",
+		},
+		4: {
+			"   # ",
+			"  ## ",
+			" # # ",
+			"#  # ",
+			"#####",
+			"   # ",
+			"   # ",
+		},
+		5: {
+			"#####",
+			"#    ",
+			"#    ",
+			"#### ",
+			"    #",
+			"#   #",
+			" ### ",
+		},
+		6: {
+			" ### ",
+			"#   #",
+			"#    ",
+			"#### ",
+			"#   #",
+			"#   #",
+			" ### ",
+		},
+		7: {
+			"#####",
+			"    #",
+			"   # ",
+			"  #  ",
+			" #   ",
+			" #   ",
+			" #   ",
+		},
+		8: {
+			" ### ",
+			"#   #",
+			"#   #",
+			" ### ",
+			"#   #",
+			"#   #",
+			" ### ",
+		},
+	}
+
+	pattern, exists := patterns[num]
+	if !exists {
+		return
+	}
+
+	// Scale factor for larger text
+	scale := 2
+	
+	for row, line := range pattern {
+		for col, char := range line {
+			if char == '#' {
+				// Draw a 2x2 pixel block for each '#'
+				for dy := 0; dy < scale; dy++ {
+					for dx := 0; dx < scale; dx++ {
+						px := x + col*scale + dx
+						py := y + row*scale + dy
+						if px >= 0 && py >= 0 && px < WindowWidth && py < WindowHeight+60 {
+							vector.DrawFilledRect(screen, float32(px), float32(py), 1, 1, c, false)
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
+// drawLargeMine draws a large mine symbol
+func drawLargeMine(screen *ebiten.Image, x, y int) {
+	c := color.RGBA{255, 0, 0, 255} // Red mine
+	pattern := []string{
+		"  #  ",
+		" ### ",
+		"#####",
+		" ### ",
+		"  #  ",
+	}
+
+	scale := 2
+	for row, line := range pattern {
+		for col, char := range line {
+			if char == '#' {
+				for dy := 0; dy < scale; dy++ {
+					for dx := 0; dx < scale; dx++ {
+						px := x + col*scale + dx
+						py := y + row*scale + dy + 2 // Offset slightly
+						if px >= 0 && py >= 0 && px < WindowWidth && py < WindowHeight+60 {
+							vector.DrawFilledRect(screen, float32(px), float32(py), 1, 1, c, false)
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
+// drawLargeFlag draws a large flag symbol
+func drawLargeFlag(screen *ebiten.Image, x, y int) {
+	c := color.RGBA{255, 0, 0, 255} // Red flag
+	pattern := []string{
+		"##   ",
+		"###  ",
+		"##   ",
+		"#    ",
+		"#    ",
+		"#    ",
+		"#    ",
+	}
+
+	scale := 2
+	for row, line := range pattern {
+		for col, char := range line {
+			if char == '#' {
+				for dy := 0; dy < scale; dy++ {
+					for dx := 0; dx < scale; dx++ {
+						px := x + col*scale + dx
+						py := y + row*scale + dy
+						if px >= 0 && py >= 0 && px < WindowWidth && py < WindowHeight+60 {
+							vector.DrawFilledRect(screen, float32(px), float32(py), 1, 1, c, false)
+						}
+					}
+				}
+			}
+		}
+	}
 }
 
 func (g *Game) calculateNeighborMines() {
@@ -290,12 +467,19 @@ func (g *Game) drawCell(screen *ebiten.Image, x, y int) {
 
 	if cell.State == CellOpen {
 		if cell.HasMine {
-			ebitenutil.DebugPrintAt(screen, "*", int(screenX)+10, int(screenY)+20)
+			drawLargeMine(screen, int(screenX)+7, int(screenY)+8)
 		} else if cell.NeighborMines > 0 {
-			ebitenutil.DebugPrintAt(screen, fmt.Sprintf("%d", cell.NeighborMines), int(screenX)+10, int(screenY)+20)
+			// Get color for this number
+			var textColor color.Color
+			if cell.NeighborMines < len(numberColors) {
+				textColor = numberColors[cell.NeighborMines]
+			} else {
+				textColor = color.RGBA{0, 0, 0, 255} // Default black
+			}
+			drawLargeNumber(screen, cell.NeighborMines, int(screenX)+7, int(screenY)+8, textColor)
 		}
 	} else if cell.State == CellFlagged {
-		ebitenutil.DebugPrintAt(screen, "F", int(screenX)+10, int(screenY)+20)
+		drawLargeFlag(screen, int(screenX)+7, int(screenY)+8)
 	}
 }
 
