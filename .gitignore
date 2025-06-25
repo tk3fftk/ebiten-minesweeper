@@ -1,0 +1,21 @@
+# Binaries
+minesweeper
+*.exe
+
+# Go build cache
+*.o
+*.a
+*.so
+
+# Dependency directories
+vendor/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
