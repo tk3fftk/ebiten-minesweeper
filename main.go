@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	CellSize = 30
+	CellSize     = 30
 	HeaderHeight = 60
 )
 
@@ -51,7 +51,6 @@ var numberColors = []color.Color{
 	color.RGBA{0, 0, 0, 255},       // 7: black
 	color.RGBA{128, 128, 128, 255}, // 8: gray
 }
-
 
 type CellState int
 
@@ -220,7 +219,7 @@ func (g *Game) drawLargeNumber(screen *ebiten.Image, num int, x, y int, c color.
 
 	// Scale factor for larger text
 	scale := 2
-	
+
 	for row, line := range pattern {
 		for col, char := range line {
 			if char == '#' {
@@ -245,11 +244,11 @@ func (g *Game) drawMine(screen *ebiten.Image, x, y int) {
 	centerX := x + 8
 	centerY := y + 8
 	radius := 6
-	
+
 	// Draw filled circle using small rectangles
 	for dy := -radius; dy <= radius; dy++ {
 		for dx := -radius; dx <= radius; dx++ {
-			if dx*dx + dy*dy <= radius*radius {
+			if dx*dx+dy*dy <= radius*radius {
 				px := centerX + dx
 				py := centerY + dy
 				if px >= 0 && py >= 0 && px < g.config.Width*CellSize && py < g.config.Height*CellSize+HeaderHeight {
@@ -258,15 +257,15 @@ func (g *Game) drawMine(screen *ebiten.Image, x, y int) {
 			}
 		}
 	}
-	
+
 	// Draw spikes around the bomb
 	spikeColor := color.RGBA{0, 0, 0, 255}
-	
+
 	// Top spike
 	for i := 0; i < 3; i++ {
 		vector.DrawFilledRect(screen, float32(centerX), float32(centerY-radius-3+i), 1, 1, spikeColor, false)
 	}
-	// Bottom spike  
+	// Bottom spike
 	for i := 0; i < 3; i++ {
 		vector.DrawFilledRect(screen, float32(centerX), float32(centerY+radius+1+i), 1, 1, spikeColor, false)
 	}
@@ -278,12 +277,12 @@ func (g *Game) drawMine(screen *ebiten.Image, x, y int) {
 	for i := 0; i < 3; i++ {
 		vector.DrawFilledRect(screen, float32(centerX+radius+1+i), float32(centerY), 1, 1, spikeColor, false)
 	}
-	
+
 	// Diagonal spikes
 	for i := 0; i < 2; i++ {
 		// Top-left
 		vector.DrawFilledRect(screen, float32(centerX-4-i), float32(centerY-4-i), 1, 1, spikeColor, false)
-		// Top-right  
+		// Top-right
 		vector.DrawFilledRect(screen, float32(centerX+4+i), float32(centerY-4-i), 1, 1, spikeColor, false)
 		// Bottom-left
 		vector.DrawFilledRect(screen, float32(centerX-4-i), float32(centerY+4+i), 1, 1, spikeColor, false)
